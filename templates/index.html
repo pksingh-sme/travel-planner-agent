@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Planner Agent</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .itinerary-details {
+            margin-top: 15px;
+        }
+        .day-plan {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .download-btn {
+            background-color: #28a745;
+            width: auto;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✈️ Travel Planner Agent</h1>
+        <p style="text-align: center;">Plan your perfect trip with AI assistance!</p>
+        
+        <form id="travelForm">
+            <div class="form-group">
+                <label for="travel_request">Describe your trip:</label>
+                <textarea 
+                    id="travel_request" 
+                    name="travel_request" 
+                    placeholder="Example: Plan a 3-day Seattle trip under $500 with sightseeing and hotel."
+                    required
+                ></textarea>
+            </div>
+            <button type="submit">Plan My Trip</button>
+        </form>
+        
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        document.getElementById('travelForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const travelRequest = document.getElementById('travel_request').value;
+            const resultDiv = document.getElementById('result');
+            
+            // Show loading message
+            resultDiv.className = 'result';
+            resultDiv.innerHTML = '<p>Planning your trip... Please wait.</p>';
+            resultDiv.style.display = 'block';
+            
+            // Send request to backend
+            fetch('/plan_trip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'travel_request=' + encodeURIComponent(travelRequest)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayItinerary(data.itinerary, data.pdf_path);
+                } else {
+                    showError(data.error);
+                }
+            })
+            .catch(error => {
+                showError('An error occurred while planning your trip. Please try again.');
+                console.error('Error:', error);
+            });
+        });
+        
+        function displayItinerary(itinerary, pdfPath) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result success';
+            
+            let html = `
+                <h2>Your Travel Itinerary</h2>
+                <div class="itinerary-details">
+                    <p><strong>Destination:</strong> ${itinerary.destination}</p>
+                    <p><strong>Duration:</strong> ${itinerary.days} days</p>
+                    <p><strong>Budget:</strong> $${itinerary.budget.toFixed(2)}</p>
+                    <p><strong>Total Cost:</strong> $${itinerary.total_cost.toFixed(2)}</p>
+            `;
+            
+            if (itinerary.hotel) {
+                html += `
+                    <h3>Accommodation</h3>
+                    <p><strong>Hotel:</strong> ${itinerary.hotel.name}</p>
+                    <p><strong>Price per night:</strong> $${itinerary.hotel.price_per_night}</p>
+                    <p><strong>Rating:</strong> ${itinerary.hotel.rating}/5</p>
+                `;
+            }
+            
+            html += `
+                <h3>Transportation</h3>
+                <p><strong>Type:</strong> ${itinerary.transport.type}</p>
+                <p><strong>Price per day:</strong> $${itinerary.transport.price_per_day}</p>
+                
+                <h3>Daily Plan</h3>
+            `;
+            
+            itinerary.daily_plan.forEach(day => {
+                html += `<div class="day-plan"><h4>Day ${day.day}</h4>`;
+                
+                if (day.activities.length > 0) {
+                    day.activities.forEach(activity => {
+                        html += `
+                            <p><strong>${activity.name}</strong> ($${activity.price})</p>
+                            <p>Duration: ${activity.duration_hours} hours | Rating: ${activity.rating}/5</p>
+                        `;
+                    });
+                } else {
+                    html += '<p>No activities planned</p>';
+                }
+                
+                html += `<p><strong>Daily Activity Cost:</strong> $${day.cost.toFixed(2)}</p></div>`;
+            });
+            
+            html += `
+                <a href="/download_pdf/${encodeURIComponent(pdfPath.split('/').pop())}" class="download-btn">Download PDF Itinerary</a>
+            `;
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        function showError(message) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result error';
+            resultDiv.innerHTML = `<p><strong>Error:</strong> ${message}</p>`;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
