@@ -1,6 +1,7 @@
 # Travel Planner Agent
 
 An AI-powered Travel Planner Agent that creates multi-day trip itineraries based on user input, including hotels, sightseeing, travel, and budget, with PDF generation capability.
+![Travel Planner Demo](travel-planner.png)
 
 ## Features
 
